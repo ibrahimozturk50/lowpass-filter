@@ -1,0 +1,114 @@
+%% S1-a
+[st,Fs] = audioread('example.wav'); %ses dosyasının okunması
+Ts =1/Fs;
+t = [0:numel(st)-1]*Ts;  %işarete uygun zamanın oluşturulması
+length(st);
+st_transpoze=st';   %işaretin transpozesin alınması
+figure('name','S-A')
+plot(t,st)
+xlabel('Zaman [sn]'), ylabel('Genlik');
+title(['s(t) Ses Isareti Fs: ',num2str(Fs)])
+sound(st,Fs)
+
+%% S1-b
+%Genlik spektrumu hesaplama ve çizdirme
+
+S_g = fft(st);
+S_g = fftshift(abs(S_g)); % merkeze kaydirma
+S_g = 1/numel(S_g)*S_g; % olcekleme
+F = linspace(-Fs/2,Fs/2,numel(S_g));
+
+figure('name','S-B1')
+plot(F,S_g/max(S_g)),grid on,title('s(t) işaretinin genlik spektrumu'),
+xlabel('Frekans [Hz]'), ylabel('Genlik [V]'),xlim([-Fs/2 , Fs/2])
+
+%Davul için uygun alçak geçiren filtre (Hd için)
+Fc = 7500;
+Hd = zeros(numel(F),1);
+Hd( abs(F)<= Fc ) = 1; % pratik kod yazimi
+% Onemli Not: matlab indis olarak 0 kabul etmez ama logic 0 ve 1 kabul eder
+Hds = fftshift(Hd);
+yd = ifft(Hds.*fft(st));
+ydr = real(yd);
+Ydr = fftshift(abs(fft(ydr)));
+S_g = fftshift(abs(fft(st)));
+F = linspace(-Fs/2 , Fs/2 , numel(S_g));
+ydr = ydr/max(abs(ydr));
+
+
+%Gitar için uygun alçak geçiren filtre (Hg için)
+Fc = 10000;
+Hg = zeros(numel(F),1);
+Hg( abs(F)<= Fc ) = 1; % pratik kod yazimi
+% Onemli Not: matlab indis olarak 0 kabul etmez ama logic 0 ve 1 kabul eder
+Hgs = fftshift(Hg);
+yg = ifft(Hg.*fft(st));
+ygr = real(yg);
+Ygr = fftshift(abs(fft(ygr)));
+ygr = ygr/max(abs(ygr));
+
+%Filtrelerin çizdirilmesi
+figure('name','S-B2')
+subplot(311)
+plot(F,S_g/max(S_g)),
+grid on,xlim([-Fs/2 , Fs/2])
+xlabel('Frekans [Hz]'), ylabel('Genlik [V]'),hold on,
+title('s(t) Isaretine Filtrenin Uygulanması')
+plot(F,Hd,'m--','linewidth',1.5),
+subplot(312),plot(F,Ydr,'r'),grid on,xlim([-Fs/2 , Fs/2])
+xlabel('Frekans [Hz]'), ylabel('Genlik [V]')
+title('Hd filtresi'),
+subplot(313),plot(F,Ygr,'r'),grid on,xlim([-Fs/2 , Fs/2])
+xlabel('Frekans [Hz]'), ylabel('Genlik [V]')
+title('Hg filtresi'),
+
+%% S-c1
+%Uygun lokal osilatörler ile çarpıldıktan sonra Hd filtresinin uygulanması 
+Fc =5000;
+c = cos(2*pi*Fc*t)'; % tasiyici isaret
+m = ydr.*c; % dsb modulasyon
+s = m.*c; % demodulasyon icin module isareti lokal osilator ile carptik
+
+M = fftshift(abs(fft(m)));
+S = fftshift(abs(fft(s)));
+F = linspace(-Fs/2 , Fs/2 , numel(M));
+figure('name','S-C1')
+subplot(211)
+plot(t,m,'b'),grid on,xlabel('Zaman [sn]'), ylabel('Genlik');
+title('Sd(t) İşareti'),
+subplot(212)
+plot(F,M/max(M),'r'),grid on,xlim([-Fs/2 , Fs/2])
+xlabel('Frekans [Hz]'), ylabel('Genlik [V]'),
+hold on,plot(F,Hd,'m--','linewidth',1.5)
+title('Sd(t) İşaretinin genlik spektrumu'),
+%s(t) işaretine Hd filtresinin uygulanması
+sd = ifft(Hds.*fft(m));
+sd  = real(sd); 
+sd  = sd /max(abs(sd ));
+sound(sd ,Fs) % clear sound
+%% S-c2
+%uygun lokal osilatörler ile çarpıldıktan sonra Hg filtresinin uygulanması
+Fc =15000;
+c = cos(2*pi*Fc*t)'; % tasiyici isaret
+m = ygr.*c; % dsb modulasyon
+s = m.*c; % demodulasyon icin module isareti lokal osilator ile carptik
+
+M = fftshift(abs(fft(m)));
+S = fftshift(abs(fft(s)));
+F = linspace(-Fs/2 , Fs/2 , numel(M));
+
+figure('name','S-C2')
+subplot(211)
+plot(t,s,'b'),grid on,xlabel('Zaman [sn]'), ylabel('Genlik');
+title('Sg(t) İşareti'),
+subplot(212)
+plot(F,S/max(S),'r'),grid on,xlim([-Fs/2 , Fs/2])
+xlabel('Frekans [Hz]'), ylabel('Genlik [V]'),
+hold on,plot(F,Hg,'m--','linewidth',1.5)
+title('Sg(t) İşaretinin Genlik spektrumu'),
+
+%s(t) işaretine Hg filtresinin uygulanması
+sg = ifft(Hgs.*fft(s));
+sg = real(sg);
+sg = sg/max(abs(sg));
+sound(sg,Fs) % clear sound
